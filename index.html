@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シケモク・サバイバー (タバコ警察25人版)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000;
+            position: relative;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #status-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            /* UI固定幅設定：ストックが増えても横幅が変わらないように固定 */
+            width: 400px;
+            box-sizing: border-box;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+        }
+        #time-score {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .gauge-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #cigarette-gauge {
+            display: flex;
+            width: 100%;
+            height: 25px;
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 4px;
+            padding: 2px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            box-sizing: border-box;
+        }
+        #cig-filter {
+            width: 45px;
+            height: 100%;
+            background: #d28c3d;
+            border-right: 2px solid #a66a26;
+        }
+        #cig-body-container {
+            flex-grow: 1;
+            height: 100%;
+            background: transparent;
+            display: flex;
+            justify-content: flex-start;
+        }
+        #cig-body {
+            height: 100%;
+            width: 100%;
+            background: #f0f0f0;
+            position: relative;
+            transition: width 0.1s linear;
+        }
+        #cig-fire {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 6px;
+            background: #ff4500;
+            box-shadow: -3px 0 10px #ff0000;
+        }
+        
+        #lighter {
+            position: relative;
+            width: 18px;
+            height: 35px;
+            margin-left: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        #lighter-top {
+            width: 12px;
+            height: 10px;
+            background: #aaa;
+            border-radius: 3px 3px 0 0;
+            border: 1px solid #777;
+            border-bottom: none;
+            z-index: 2;
+        }
+        #lighter-body {
+            width: 18px;
+            height: 25px;
+            background: #1e90ff;
+            border-radius: 2px;
+            border: 1px solid #104e8b;
+            z-index: 2;
+        }
+        #lighter-flame {
+            position: absolute;
+            top: -15px;
+            width: 12px;
+            height: 18px;
+            background: radial-gradient(ellipse at bottom, #ffffff 10%, #f1c40f 40%, #e74c3c 80%, transparent 100%);
+            border-radius: 50% 50% 20% 20%;
+            box-shadow: 0 -5px 15px #e74c3c;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 1;
+        }
+        #lighter-flame.active {
+            opacity: 1;
+            animation: flicker 0.1s infinite alternate;
+        }
+        @keyframes flicker {
+            0% { transform: scale(1) skewX(-2deg); }
+            100% { transform: scale(1.1) skewX(2deg); opacity: 0.9; }
+        }
+
+        .stock-label {
+            font-size: 14px;
+            margin-top: 5px;
+            color: #ccc;
+            display: flex;
+            justify-content: space-between;
+        }
+        #stock-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 10px;
+            margin-bottom: 5px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .stock-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+        .mini-cig {
+            width: 20px;
+            height: 6px;
+            background: #f0f0f0;
+            position: relative;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            border-radius: 1px;
+        }
+        .mini-cig::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 6px;
+            height: 100%;
+            background: #d28c3d;
+            border-right: 1px solid #a66a26;
+        }
+        .brand-name {
+            font-size: 10px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px #000;
+        }
+        
+        #action-log {
+            font-size: 22px;
+            font-weight: bold;
+            height: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #mini-map-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;   
+            width: 380px;
+            height: 250px;
+            box-sizing: border-box;
+            border: 4px solid rgba(210, 140, 61, 0.8); 
+            border-radius: 8px;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: hidden; 
+            pointer-events: auto; 
+        }
+        #mini-map-label {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 2px 5px;
+            border-radius: 4px;
+            z-index: 6; 
+        }
+
+        #police-dialogue-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none; 
+            flex-direction: column;
+            justify-content: flex-end; 
+            align-items: center;
+            padding-bottom: 50px;
+            pointer-events: none; 
+            background-color: transparent; 
+            z-index: 10; 
+        }
+        #police-dialogue-message {
+            background-color: rgba(255, 255, 0, 0.9); 
+            color: black;
+            font-size: 32px;
+            font-weight: bold;
+            padding: 30px 60px;
+            border: 6px solid #d28c3d;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+            text-shadow: none; 
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            pointer-events: auto;
+            z-index: 20; 
+        }
+        h1 { font-size: 48px; margin-bottom: 10px; }
+        p { font-size: 20px; margin-bottom: 30px; text-align: center; line-height: 1.6;}
+        button {
+            padding: 15px 30px;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: #d28c3d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #a66a26; }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        
+        <div id="status-bar">
+            <div id="time-score">生存時間: 0.00 秒</div>
+            <div class="gauge-wrapper">
+                <span>Life:</span>
+                <div id="cigarette-gauge">
+                    <div id="cig-filter"></div>
+                    <div id="cig-body-container">
+                        <div id="cig-body">
+                            <div id="cig-fire"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="lighter">
+                    <div id="lighter-flame"></div>
+                    <div id="lighter-top"></div>
+                    <div id="lighter-body"></div>
+                </div>
+            </div>
+            
+            <div class="stock-label">
+                <span>ストック ([Enter]で右端から着火)</span>
+            </div>
+            <div id="stock-container"></div>
+            <div id="action-log"></div>
+        </div>
+        
+        <div id="mini-map-container">
+            <div id="mini-map-label">現場カメラ (三人称視点)</div>
+        </div>
+        
+        <div id="police-dialogue-overlay">
+            <div id="police-dialogue-message"></div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="screen">
+        <h1>シケモク・サバイバー</h1>
+        <p>
+            時間経過でタバコ（ライフ）が短くなります。<br>
+            [W][A][S][D]キーで移動、マウスで視点操作。<br>
+            「シケモク」を拾ってストックし、<strong>[Enter]キーで着火</strong>してください。<br>
+            <span style="color: #ffaa00; font-weight:bold;">着火成功率は70%！</span><br>
+            <span style="color: #ffff00; font-weight:bold;">警告：タバコ警察（黄色いベスト・帽子・目！）に捕まると、<br>お説教を食らって３秒間動けなくなります。</span>
+        </p>
+        <button id="start-btn">ゲームスタート (クリックで画面ロック)</button>
+    </div>
+
+    <div id="game-over-screen" class="screen" style="display: none;">
+        <h1 style="color: #ff4444;">灰になった... (Game Over)</h1>
+        <p id="final-score">生存時間: 0 秒</p>
+        <button id="restart-btn">もう一本吸う (リトライ)</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        let camera, scene, renderer, controls, ambientLight, dirLight, playerLight;
+        const collectibles = [];
+        const itemsGroup = new THREE.Group();
+        
+        const cigarettePoliceForce = [];
+        const policeGroup = new THREE.Group();
+        
+        let playerModel;
+        let subCamera; 
+        
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+
+        let prevTime = performance.now();
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+
+        let isGameRunning = false;
+        let life = 100;
+        let survivalTime = 0;
+        
+        let cigStock = []; 
+        let logTimeout = null; 
+        
+        let isPoliceInteractionActive = false; 
+        let originalControlsPosition = new THREE.Vector3(); 
+        let originalControlsRotation = new THREE.Euler(); 
+        
+        const MAX_LIFE = 100;
+        const LIFE_DECAY_RATE = 5.0; 
+        const PLAYER_SPEED = 40.0;
+        const ITEM_COUNT = 55;        
+        const MAP_SIZE = 100;
+
+        const CIGARETTE_TYPES = [
+            { name: 'マルボロ', heal: 14, color: 'white' },
+            { name: 'ピース', heal: 25, color: '#44ff44' },
+            { name: 'メビウス', heal: 10, color: '#ff4444' }
+        ];
+        
+        /* ① タバコ警察の人数をさらに5人増やして合計25人に変更 */
+        const POLICE_COUNT = 25; 
+        const POLICE_SPEED_IDLE = 1.0; 
+        const POLICE_SPEED_CHASE = 2.5; 
+        const POLICE_CHASE_DISTANCE = 15; 
+        const POLICE_COLLISION_DISTANCE = 3; 
+        const POLICE_INTERACTION_DURATION = 3; 
+        const POLICE_STUN_DURATION = 3; 
+        
+        const uiCigBody = document.getElementById('cig-body');
+        const uiTimeScore = document.getElementById('time-score');
+        const uiStockContainer = document.getElementById('stock-container');
+        const uiActionLog = document.getElementById('action-log');
+        const lighterFlame = document.getElementById('lighter-flame'); 
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreText = document.getElementById('final-score');
+        const uiMiniMapContainer = document.getElementById('mini-map-container'); 
+        
+        const uiPoliceDialogueOverlay = document.getElementById('police-dialogue-overlay');
+        const uiPoliceDialogueMessage = document.getElementById('police-dialogue-message');
+
+        let policeEyeTexture;
+
+        init();
+        animate();
+
+        function getRandomCigType() {
+            const rand = Math.random();
+            if (rand < 0.5) {
+                return CIGARETTE_TYPES[0];
+            } else if (rand < 0.7) {
+                return CIGARETTE_TYPES[1];
+            } else {
+                return CIGARETTE_TYPES[2];
+            }
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            scene.fog = new THREE.Fog(0x1a1a2e, 5, 40); 
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.y = 2; 
+            camera.layers.set(0);
+
+            const mapContainerWidth = uiMiniMapContainer.clientWidth;
+            const mapContainerHeight = uiMiniMapContainer.clientHeight;
+            subCamera = new THREE.PerspectiveCamera(60, mapContainerWidth / mapContainerHeight, 0.1, 1000);
+            subCamera.layers.enable(1);
+            scene.add(subCamera);
+
+            playerModel = new THREE.Group();
+            
+            const torsoGeo = new THREE.BoxGeometry(1.2, 1.8, 0.6);
+            const clothingMat = new THREE.MeshStandardMaterial({ color: 0x1e90ff }); 
+            const torso = new THREE.Mesh(torsoGeo, clothingMat);
+            torso.position.y = 1.7; 
+            playerModel.add(torso);
+            
+            const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const faceMat = new THREE.MeshStandardMaterial({ color: 0xf5f5dc }); 
+            const head = new THREE.Mesh(headGeo, faceMat);
+            head.position.y = 2.9; 
+            playerModel.add(head);
+            
+            const hairGeo = new THREE.BoxGeometry(1.0, 0.4, 1.0);
+            const hairMat = new THREE.MeshStandardMaterial({ color: 0x8b4513 }); 
+            const hair = new THREE.Mesh(hairGeo, hairMat);
+            hair.position.y = 3.3; 
+            playerModel.add(hair);
+            
+            const legGeo = new THREE.BoxGeometry(0.4, 1, 0.4);
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x111111 }); 
+            const leg1 = new THREE.Mesh(legGeo, pantsMat);
+            leg1.position.set(0.3, 0.5, 0); 
+            playerModel.add(leg1);
+            
+            const leg2 = new THREE.Mesh(legGeo, pantsMat);
+            leg2.position.set(-0.3, 0.5, 0); 
+            playerModel.add(leg2);
+            
+            const armGeo = new THREE.BoxGeometry(0.3, 1.5, 0.3);
+            const arm1 = new THREE.Mesh(armGeo, clothingMat);
+            arm1.position.set(0.8, 1.7, 0); 
+            playerModel.add(arm1);
+            
+            const arm2 = new THREE.Mesh(armGeo, clothingMat);
+            arm2.position.set(-0.8, 1.7, 0); 
+            playerModel.add(arm2);
+            
+            playerModel.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.layers.set(1);
+                }
+            });
+            playerModel.position.set(0, 0, 0); 
+            scene.add(playerModel);
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+            scene.add(ambientLight);
+            
+            dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+            dirLight.position.set(20, 50, 20);
+            scene.add(dirLight);
+
+            playerLight = new THREE.PointLight(0xffffff, 0, 100);
+            scene.add(playerLight);
+
+            const floorGeometry = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333, roughness: 0.9, metalness: 0.1
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.layers.set(0); 
+            scene.add(floor);
+
+            createWalls();
+            createPoliceEyeTexture();
+
+            scene.add(itemsGroup);
+            for (let i = 0; i < ITEM_COUNT; i++) {
+                spawnCollectible();
+            }
+            
+            scene.add(policeGroup);
+            for (let i = 0; i < POLICE_COUNT; i++) {
+                spawnCigarettePolice(i);
+            }
+
+            controls = new PointerLockControls(camera, document.body);
+
+            controls.addEventListener('lock', function () {
+                startScreen.style.display = 'none';
+                if(life > 0) isGameRunning = true;
+                prevTime = performance.now();
+            });
+
+            controls.addEventListener('unlock', function () {
+                if (life > 0 && !isPoliceInteractionActive) { 
+                    startScreen.style.display = 'flex';
+                    document.getElementById('start-btn').innerText = 'ゲーム再開 (クリック)';
+                }
+                isGameRunning = false;
+            });
+
+            document.getElementById('start-btn').addEventListener('click', () => { controls.lock(); });
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                resetGame();
+                controls.lock();
+            });
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.autoClear = false; 
+            
+            renderer.toneMapping = THREE.LinearToneMapping;
+            renderer.toneMappingExposure = 1.0; 
+            
+            document.body.appendChild(renderer.domElement);
+
+            const onKeyDown = function (event) {
+                switch (event.code) {
+                    case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                    case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+                    case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                    case 'ArrowRight': case 'KeyD': moveRight = true; break;
+                    case 'Enter': 
+                        if (isGameRunning && !isPoliceInteractionActive) tryIgnite(); 
+                        break;
+                }
+            };
+
+            const onKeyUp = function (event) {
+                switch (event.code) {
+                    case 'ArrowUp': case 'KeyW': moveForward = false; break;
+                    case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
+                    case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+                    case 'ArrowRight': case 'KeyD': moveRight = false; break;
+                }
+            };
+
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createWalls() {
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const wallGeo = new THREE.BoxGeometry(MAP_SIZE, 10, 2);
+            
+            const wall1 = new THREE.Mesh(wallGeo, wallMat);
+            wall1.position.set(0, 5, -MAP_SIZE/2);
+            wall1.layers.set(0); 
+            scene.add(wall1);
+
+            const wall2 = new THREE.Mesh(wallGeo, wallMat);
+            wall2.position.set(0, 5, MAP_SIZE/2);
+            wall2.layers.set(0); 
+            scene.add(wall2);
+
+            const wallGeoSide = new THREE.BoxGeometry(2, 10, MAP_SIZE);
+            const wall3 = new THREE.Mesh(wallGeoSide, wallMat);
+            wall3.position.set(-MAP_SIZE/2, 5, 0);
+            wall3.layers.set(0); 
+            scene.add(wall3);
+
+            const wall4 = new THREE.Mesh(wallGeoSide, wallMat);
+            wall4.position.set(MAP_SIZE/2, 5, 0);
+            wall4.layers.set(0); 
+            scene.add(wall4);
+        }
+
+        function spawnCollectible() {
+            const cigGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8);
+            const filterGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8);
+            
+            const whiteMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+            const filterMat = new THREE.MeshStandardMaterial({ color: 0xd28c3d });
+
+            const whitePart = new THREE.Mesh(cigGeo, whiteMat);
+            const filterPart = new THREE.Mesh(filterGeo, filterMat);
+            filterPart.position.y = 0.45; 
+
+            const item = new THREE.Group();
+            item.add(whitePart);
+            item.add(filterPart);
+
+            item.rotation.x = Math.PI / 2;
+            item.rotation.z = Math.random() * Math.PI;
+
+            const range = (MAP_SIZE / 2) - 2;
+            item.position.x = (Math.random() - 0.5) * 2 * range;
+            item.position.z = (Math.random() - 0.5) * 2 * range;
+            item.position.y = 0.1; 
+            
+            item.userData.type = getRandomCigType();
+            
+            item.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.layers.set(0); 
+                }
+            });
+
+            itemsGroup.add(item);
+            collectibles.push(item);
+        }
+        
+        function createPoliceEyeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+
+            context.fillStyle = '#f5f5dc'; 
+            context.fillRect(0, 0, 128, 64);
+
+            context.fillStyle = '#ffffff';
+            context.fillRect(20, 20, 30, 25); 
+            context.fillRect(78, 20, 30, 25); 
+
+            context.fillStyle = '#000000';
+            context.fillRect(30, 25, 10, 15); 
+            context.fillRect(88, 25, 10, 15); 
+
+            policeEyeTexture = new THREE.CanvasTexture(canvas);
+        }
+
+        function spawnCigarettePolice(index) {
+            const modelGroup = new THREE.Group();
+            
+            const torsoGeo = new THREE.BoxGeometry(1.2, 1.8, 0.6);
+            const vestMat = new THREE.MeshStandardMaterial({ color: 0xffff00 }); 
+            const torso = new THREE.Mesh(torsoGeo, vestMat);
+            torso.position.y = 2; 
+            modelGroup.add(torso);
+            
+            const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            
+            const faceMat = new THREE.MeshStandardMaterial({ color: 0xf5f5dc }); 
+            const eyeMat = new THREE.MeshStandardMaterial({ map: policeEyeTexture }); 
+
+            const headMaterials = [
+                faceMat, faceMat, faceMat, faceMat, eyeMat, faceMat 
+            ];
+
+            const head = new THREE.Mesh(headGeo, headMaterials);
+            head.position.y = 3.2; 
+            modelGroup.add(head);
+            
+            const hatGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 8);
+            const hatMat = new THREE.MeshStandardMaterial({ color: 0xffff00 }); 
+            const hatPart1 = new THREE.Mesh(hatGeo, hatMat);
+            hatPart1.position.y = 3.7; 
+            modelGroup.add(hatPart1);
+            
+            const hatBrimGeo = new THREE.BoxGeometry(1, 0.1, 1);
+            const hatBrim = new THREE.Mesh(hatBrimGeo, hatMat);
+            hatBrim.position.set(0, 3.6, 0.2); 
+            modelGroup.add(hatBrim);
+            
+            const legGeo = new THREE.BoxGeometry(0.4, 1, 0.4);
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x111111 }); 
+            const leg1 = new THREE.Mesh(legGeo, pantsMat);
+            leg1.position.set(0.3, 0.5, 0); 
+            modelGroup.add(leg1);
+            
+            const leg2 = new THREE.Mesh(legGeo, pantsMat);
+            leg2.position.set(-0.3, 0.5, 0); 
+            modelGroup.add(leg2);
+            
+            const armGeo = new THREE.BoxGeometry(0.3, 1.5, 0.3);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0xf5f5dc }); 
+            const arm1 = new THREE.Mesh(armGeo, armMat);
+            arm1.position.set(0.8, 2, 0); 
+            modelGroup.add(arm1);
+            
+            const arm2 = new THREE.Mesh(armGeo, armMat);
+            arm2.position.set(-0.8, 2, 0); 
+            modelGroup.add(arm2);
+            
+            modelGroup.name = `CigarettePolice_${index}`; 
+            
+            const range = (MAP_SIZE / 2) - 5;
+            const minSafeDistance = POLICE_CHASE_DISTANCE * 1.4; 
+            let policeX, policeZ, distFromPlayer;
+            
+            do {
+                policeX = (Math.random() - 0.5) * 2 * range;
+                policeZ = (Math.random() - 0.5) * 2 * range;
+                distFromPlayer = Math.sqrt(policeX * policeX + policeZ * policeZ);
+            } while (distFromPlayer < minSafeDistance);
+            
+            modelGroup.position.x = policeX;
+            modelGroup.position.z = policeZ;
+            modelGroup.position.y = 0; 
+            
+            modelGroup.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.layers.set(0); 
+                }
+            });
+
+            policeGroup.add(modelGroup);
+            
+            cigarettePoliceForce.push({
+                model: modelGroup,
+                head: head, 
+                velocity: new THREE.Vector3(),
+                direction: new THREE.Vector3( (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2 ).normalize(),
+                randomMoveTimeRemaining: 0,
+                stunTimeRemaining: 0, 
+                stunRemainingTimeAfterInteraction: 0 
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            
+            const mapAspect = uiMiniMapContainer.clientWidth / uiMiniMapContainer.clientHeight;
+            subCamera.aspect = mapAspect;
+            subCamera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function resetGame() {
+            life = MAX_LIFE;
+            survivalTime = 0;
+            cigStock = []; 
+            uiActionLog.innerText = ''; 
+            lighterFlame.classList.remove('active');
+            
+            isPoliceInteractionActive = false;
+            uiPoliceDialogueOverlay.style.display = 'none';
+            uiPoliceDialogueMessage.innerText = '';
+            
+            gameOverScreen.style.display = 'none';
+            camera.position.set(0, 2, 0);
+            playerModel.position.set(0, 0, 0); 
+            
+            collectibles.forEach(item => itemsGroup.remove(item));
+            collectibles.length = 0;
+            for (let i = 0; i < ITEM_COUNT; i++) {
+                spawnCollectible();
+            }
+            
+            cigarettePoliceForce.forEach(police => policeGroup.remove(police.model));
+            cigarettePoliceForce.length = 0;
+            for (let i = 0; i < POLICE_COUNT; i++) {
+                spawnCigarettePolice(i);
+            }
+            
+            updateUI();
+        }
+
+        function tryIgnite() {
+            if (cigStock.length <= 0) return; 
+
+            const usedCig = cigStock.pop(); 
+            
+            const isSuccess = Math.random() < 0.7;
+
+            lighterFlame.classList.remove('active');
+
+            if (isSuccess) {
+                life = Math.min(MAX_LIFE, life + usedCig.heal);
+                uiActionLog.innerText = `カチッ！🔥 (${usedCig.name})`;
+                uiActionLog.style.color = "#ffaa00"; 
+                lighterFlame.classList.add('active'); 
+            } else {
+                uiActionLog.innerText = "スカッ...";
+                uiActionLog.style.color = "#888888"; 
+            }
+
+            if (logTimeout) clearTimeout(logTimeout);
+            logTimeout = setTimeout(() => {
+                uiActionLog.innerText = "";
+                lighterFlame.classList.remove('active'); 
+            }, 1000);
+
+            updateUI();
+        }
+
+        function updateUI() {
+            uiTimeScore.innerText = `生存時間: ${survivalTime.toFixed(2)} 秒`;
+            const lifePercent = Math.max(0, (life / MAX_LIFE) * 100);
+            uiCigBody.style.width = `${lifePercent}%`;
+
+            uiStockContainer.innerHTML = ''; 
+            for(let i = 0; i < cigStock.length; i++) {
+                const cig = cigStock[i];
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'stock-item';
+
+                const miniCig = document.createElement('div');
+                miniCig.className = 'mini-cig';
+                
+                const brandLabel = document.createElement('div');
+                brandLabel.className = 'brand-name';
+                brandLabel.innerText = cig.name;
+                brandLabel.style.color = cig.color;
+
+                wrapper.appendChild(miniCig);
+                wrapper.appendChild(brandLabel);
+                uiStockContainer.appendChild(wrapper);
+            }
+        }
+
+        function triggerGameOver() {
+            isGameRunning = false;
+            controls.unlock();
+            uiCigBody.style.width = '0%';
+            lighterFlame.classList.remove('active');
+            
+            isPoliceInteractionActive = false;
+            uiPoliceDialogueOverlay.style.display = 'none';
+            uiPoliceDialogueMessage.innerText = '';
+            
+            gameOverScreen.style.display = 'flex';
+            finalScoreText.innerText = `生存時間: ${survivalTime.toFixed(2)} 秒`;
+        }
+        
+        function handlePoliceCollision(collidedPolice) {
+            isPoliceInteractionActive = true; 
+            
+            originalControlsPosition.copy(controls.getObject().position);
+            originalControlsRotation.copy(controls.getObject().rotation);
+            
+            controls.unlock(); 
+            
+            const playerPos = camera.position;
+            cigarettePoliceForce.forEach(police => {
+                const policePos = police.model.position;
+                const dx = playerPos.x - policePos.x;
+                const dz = playerPos.z - policePos.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
+                
+                if (distance < POLICE_CHASE_DISTANCE) {
+                    police.stunTimeRemaining = POLICE_INTERACTION_DURATION; 
+                    police.velocity.set(0, 0, 0); 
+                }
+            });
+
+            const policeHead = collidedPolice.head;
+            const policeHeadWorldPos = new THREE.Vector3();
+            policeHead.getWorldPosition(policeHeadWorldPos);
+            
+            const zoomOffset = new THREE.Vector3(0, 0, 3); 
+            zoomOffset.applyEuler(collidedPolice.model.rotation); 
+            const zoomCameraPos = policeHeadWorldPos.clone().add(zoomOffset);
+            
+            controls.getObject().position.copy(zoomCameraPos);
+            controls.getObject().lookAt(policeHeadWorldPos); 
+            
+            uiPoliceDialogueMessage.innerText = "「きみ、こんなところでタバコを吸ってはダメではないか！」";
+            uiPoliceDialogueOverlay.style.display = 'flex'; 
+            
+            collidedPolice.stunTimeRemaining = POLICE_INTERACTION_DURATION; 
+            
+            setTimeout(() => {
+                if(life <= 0) return; 
+                
+                isPoliceInteractionActive = false; 
+                
+                uiPoliceDialogueOverlay.style.display = 'none';
+                uiPoliceDialogueMessage.innerText = '';
+                
+                controls.getObject().position.copy(originalControlsPosition);
+                controls.getObject().rotation.copy(originalControlsRotation);
+                
+                controls.lock(); 
+                prevTime = performance.now(); 
+
+                collidedPolice.stunRemainingTimeAfterInteraction = POLICE_STUN_DURATION; 
+
+            }, POLICE_INTERACTION_DURATION * 1000); 
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+
+            if ((isGameRunning || isPoliceInteractionActive) && life > 0) {
+                life -= LIFE_DECAY_RATE * delta;
+                survivalTime += delta;
+                updateUI(); 
+
+                if (life <= 0) {
+                    triggerGameOver();
+                    prevTime = time;
+                    return; 
+                }
+            }
+
+            if (isGameRunning) {
+                if (!isPoliceInteractionActive) {
+                    velocity.x -= velocity.x * 10.0 * delta;
+                    velocity.z -= velocity.z * 10.0 * delta;
+
+                    direction.z = Number(moveForward) - Number(moveBackward);
+                    direction.x = Number(moveRight) - Number(moveLeft);
+                    direction.normalize(); 
+
+                    if (moveForward || moveBackward) velocity.z -= direction.z * PLAYER_SPEED * delta;
+                    if (moveLeft || moveRight) velocity.x -= direction.x * PLAYER_SPEED * delta;
+
+                    controls.moveRight(-velocity.x * delta);
+                    controls.moveForward(-velocity.z * delta);
+                }
+
+                const bounds = (MAP_SIZE / 2) - 1;
+                if (camera.position.x > bounds) camera.position.x = bounds;
+                if (camera.position.x < -bounds) camera.position.x = -bounds;
+                if (camera.position.z > bounds) camera.position.z = bounds;
+                if (camera.position.z < -bounds) camera.position.z = -bounds;
+                camera.position.y = 2; 
+
+                for (let i = collectibles.length - 1; i >= 0; i--) {
+                    const item = collectibles[i];
+                    const dx = camera.position.x - item.position.x;
+                    const dz = camera.position.z - item.position.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+
+                    if (distance < 1.5) {
+                        itemsGroup.remove(item);
+                        collectibles.splice(i, 1);
+                        
+                        cigStock.push(item.userData.type);
+                        
+                        updateUI();
+                        spawnCollectible();
+                    }
+                }
+                
+                cigarettePoliceForce.forEach(police => {
+                    const model = police.model;
+                    
+                    if (police.stunRemainingTimeAfterInteraction > 0) {
+                        police.stunRemainingTimeAfterInteraction -= delta;
+                        police.velocity.set(0, 0, 0); 
+                    }
+                    else if (police.stunTimeRemaining > 0) {
+                        police.stunTimeRemaining -= delta;
+                        police.velocity.set(0, 0, 0); 
+                    }
+                    else {
+                        const playerPos = camera.position;
+                        const policePos = model.position;
+                        const dx = playerPos.x - policePos.x;
+                        const dz = playerPos.z - policePos.z;
+                        const distance = Math.sqrt(dx * dx + dz * dz);
+                        
+                        if (distance < POLICE_COLLISION_DISTANCE && !isPoliceInteractionActive) {
+                            handlePoliceCollision(police); 
+                            return; 
+                        }
+                        
+                        if (distance < POLICE_CHASE_DISTANCE && !isPoliceInteractionActive) {
+                            const chaseDir = new THREE.Vector3();
+                            chaseDir.subVectors(playerPos, policePos).normalize();
+                            chaseDir.y = 0; 
+                            model.lookAt(playerPos.x, policePos.y, playerPos.z);
+                            police.velocity.copy(chaseDir).multiplyScalar(POLICE_SPEED_CHASE);
+                        } else {
+                            if (police.randomMoveTimeRemaining <= 0) {
+                                police.direction.set( (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2 ).normalize();
+                                model.lookAt(policePos.x + police.direction.x, policePos.y, policePos.z + police.direction.z);
+                                police.velocity.copy(police.direction).multiplyScalar(POLICE_SPEED_IDLE);
+                                police.randomMoveTimeRemaining = 3 + Math.random() * 3;
+                            } else {
+                                police.randomMoveTimeRemaining -= delta;
+                            }
+                        }
+                    }
+                    
+                    model.position.x += police.velocity.x * delta;
+                    model.position.z += police.velocity.z * delta;
+                    
+                    const policeBounds = (MAP_SIZE / 2) - 2; 
+                    if (model.position.x > policeBounds) model.position.x = policeBounds;
+                    if (model.position.x < -policeBounds) model.position.x = -policeBounds;
+                    if (model.position.z > policeBounds) model.position.z = policeBounds;
+                    if (model.position.z < -policeBounds) model.position.z = -policeBounds;
+                    model.position.y = 0; 
+                });
+                
+            } else if (isPoliceInteractionActive) {
+                cigarettePoliceForce.forEach(police => {
+                    if (police.stunTimeRemaining > 0) {
+                        police.stunTimeRemaining -= delta;
+                    }
+                });
+            }
+            
+            if (controls.isLocked || isPoliceInteractionActive) { 
+                const playerPos = camera.position.clone();
+                const playerDir = controls.getDirection(new THREE.Vector3());
+
+                playerModel.position.copy(playerPos);
+                playerModel.position.y = 0; 
+                playerModel.rotation.y = camera.rotation.y;
+
+                const cameraOffset = playerDir.clone().multiplyScalar(-12).add(new THREE.Vector3(0, 6, 0));
+                const subCameraPos = playerPos.clone().add(cameraOffset);
+
+                const bounds = (MAP_SIZE / 2) - 2;
+                subCameraPos.x = Math.max(-bounds, Math.min(bounds, subCameraPos.x));
+                subCameraPos.z = Math.max(-bounds, Math.min(bounds, subCameraPos.z));
+                subCameraPos.y = Math.max(2, subCameraPos.y); 
+
+                subCamera.position.copy(subCameraPos);
+
+                const lookAtTarget = playerPos.clone().add(playerDir.clone().multiplyScalar(3));
+                subCamera.lookAt(lookAtTarget);
+            }
+            
+            prevTime = time;
+            
+            renderer.clear();
+
+            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+            renderer.render(scene, camera);
+
+            const mapWidth = uiMiniMapContainer.clientWidth;
+            const mapHeight = uiMiniMapContainer.clientHeight;
+            const mapX = 20; 
+            const mapY = 20; 
+
+            renderer.setScissor(mapX, mapY, mapWidth, mapHeight);
+            renderer.setScissorTest(true); 
+            renderer.setViewport(mapX, mapY, mapWidth, mapHeight);
+            
+            renderer.setClearColor(0xcccccc, 1.0);
+            renderer.clear(); 
+
+            const originalFogNear = scene.fog.near;
+            const originalFogFar = scene.fog.far;
+            scene.fog.near = 25; 
+            scene.fog.far = 80;
+            
+            renderer.toneMappingExposure = 3.0; 
+            
+            playerLight.position.copy(playerModel.position);
+            playerLight.position.y += 5;
+            playerLight.intensity = 1500; 
+
+            const originalAmbientIntensity = ambientLight.intensity;
+            const originalDirIntensity = dirLight.intensity;
+            ambientLight.intensity = 5.0; 
+            dirLight.intensity = 5.0; 
+
+            renderer.render(scene, subCamera);
+
+            scene.fog.near = originalFogNear;
+            scene.fog.far = originalFogFar;
+            renderer.toneMappingExposure = 1.0; 
+            playerLight.intensity = 0; 
+            ambientLight.intensity = originalAmbientIntensity;
+            dirLight.intensity = originalDirIntensity;
+            
+            renderer.setScissorTest(false); 
+            renderer.setClearColor(0x1a1a2e, 1.0); 
+        }
+    </script>
+</body>
+</html>
